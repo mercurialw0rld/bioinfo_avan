@@ -1,0 +1,16 @@
+gen	accession	longitud_CDS_esperada_aa	ORFs_detectados	candidatos_posterior_superior_al_umbral	rango_CDS_esperado_top5	acierto
+INS	NG_050578.1	110	805	10	no aparece	no
+HBB	NG_059281.1	147	366	1	no aparece	no
+TP53	NG_017013.2	393	803	9	no aparece	no
+BRCA1	NG_005905.2	1863	5724	36	no aparece	no
+CFTR	NG_016465.4	1480	10199	68	no aparece	no
+EGFR	NG_007726.3	1210	8824	45	no aparece	no
+MYC	NG_007161.2	454	351	6	no aparece	no
+ACTB	NG_007992.1	375	240	7	no aparece	no
+GAPDH	NG_007073.2	335	303	4	no aparece	no
+ALB	NG_009291.1	609	987	10	no aparece	no
+APOE	NG_007084.2	317	205	7	no aparece	no
+SOD1	NG_008689.1	154	452	2	no aparece	no
+TTR	NG_009490.1	147	551	5	no aparece	no
+LDHA	NG_011816.2	332	1440	7	no aparece	no
+G6PD	NG_009015.2	545	642	6	no aparece	no

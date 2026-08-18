@@ -232,7 +232,7 @@ def plotClassifierResults(
     realProteins: list[SeqRecord],
     randomOrfs: list[Orf],
     targetOrfs: list[Orf],
-    outputPath: Path = Path("clasificador_orfs.png"),
+    outputPath: Path = Path(__file__).with_name("figuras") / "clasificador_orfs.png",
 ) -> None:
     """Grafica las distribuciones aprendidas y los posteriores de los ORFs objetivo."""
     plt.style.use("seaborn-v0_8-whitegrid")
@@ -328,7 +328,10 @@ def main() -> None:
     parser.add_argument("--longitud-azar", type=int, default=100_000,
                         help="Longitud en nucleotidos de cada secuencia aleatoria")
     parser.add_argument("--semilla", type=int, default=DEFAULT_SEED)
-    parser.add_argument("--salida", type=Path, default=Path("clasificador_orfs.png"))
+    parser.add_argument(
+        "--salida", type=Path,
+        default=Path(__file__).with_name("figuras") / "clasificador_orfs.png",
+    )
     arguments = parser.parse_args()
 
     geneRecord = downloadHumanGene(arguments.email, arguments.gen, arguments.semilla)

@@ -1,0 +1,151 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-nodecimaldot]{babel}
+\usepackage{geometry}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\geometry{margin=2.5cm}
+
+% Incluye el PNG si existe; de lo contrario deja un lugar reservado y compila igual.
+\newcommand{\figureorplaceholder}[3]{%
+\begin{figure}[H]
+\centering
+\IfFileExists{#1}{\includegraphics[width=#2\textwidth]{#1}}{\fcolorbox{gray}{gray!8}{\parbox[c][6cm][c]{#2\textwidth}{\centering\large Espacio para la figura\\[0.5em]\texttt{#1}}}}
+\caption{#3}
+\label{fig:#1}
+\end{figure}%
+}
+
+\title{Trabajo Práctico 1: Detector de ORFs y comparación de distribuciones}
+\author{Facundo Kisielus}
+\date{Bioinformática Avanzada -- 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Se implementó un detector de marcos de lectura abiertos (ORFs) y un clasificador probabilístico para estimar si un ORF corresponde a una región codificante. El análisis utiliza la longitud y la composición aminoacídica de proteínas humanas reales y de secuencias aleatorias.
+\end{abstract}
+
+\section{Objetivo}
+\textit{``Escribir un código que, dada una secuencia de ADN, determine los ORFs y les asigne una probabilidad de ser (o no) un gen/exón.''}
+
+El análisis se basa en (i) la estadística del largo de proteínas naturales y (ii) la distribución de aminoácidos de secuencias naturales.
+
+\section{Datos y organización del programa}
+Las proteínas reales se descargaron de NCBI con Biopython y Entrez. Las secuencias aleatorias se generaron de manera reproducible. El código se organizó en \texttt{distribucion.py} (datos y distribuciones), \texttt{orffind.py} (ORFs y clasificador) y \texttt{control.py} (controles).
+
+\section{4a) Comparación de distribuciones de aminoácidos}
+\textbf{Consigna.} \textit{``Compare distribución de aminoácidos de secuencias de proteínas al azar vs. secuencias de proteínas reales.''}
+
+Se generaron proteínas aleatorias con las mismas longitudes que las reales, pero con los 20 aminoácidos equiprobables. Así se compara la composición sin confundirla con el efecto de la longitud.
+
+\figureorplaceholder{figuras/comparacion_distribuciones.png}{0.95}{Distribución de aminoácidos de proteínas reales y aleatorias. Las proteínas reales muestran una composición no uniforme, a diferencia del modelo aleatorio equiprobable.}
+
+\paragraph{Interpretación.} Las proteínas reales presentan frecuencias de aminoácidos desiguales y características de su composición biológica, mientras que las secuencias aleatorias presentan frecuencias aproximadamente uniformes por construcción.
+
+\section{4b) Estabilización al aumentar el tamaño muestral}
+\textbf{Consigna.} \textit{``Analice cómo cambian las distribuciones al aumentar el tamaño de la secuencia al azar analizada, y al incrementar el número de secuencias reales analizadas. ¿Cuándo es suficiente?''}
+
+Se agregaron proteínas de a una y se comparó la distribución acumulada con la distribución final. La muestra se considera suficiente cuando la variación entre estimaciones sucesivas se vuelve pequeña y se mantiene estable.
+
+\figureorplaceholder{figuras/comparacion_distribuciones.png}{0.95}{RMSE de la distribución acumulada respecto de la distribución final. La curva se estabiliza alrededor de las 300 proteínas.}
+
+\paragraph{Resultado.} La distribución se estabilizó aproximadamente a partir de 300 proteínas. Por lo tanto, se utilizó una muestra de 1000 proteínas para obtener una estimación estable y conservadora.
+
+\section{4c y 4d) Métrica para comparar distribuciones}
+\textbf{Consigna.} \textit{``Elija una métrica que permita comparar dos distribuciones (por ejemplo, RMSE)''} y \textit{``escriba un código que, dadas dos distribuciones, las compare y obtenga la métrica correspondiente.''}
+
+Se eligió el error cuadrático medio de la raíz (RMSE). Para dos distribuciones discretas $p$ y $q$ sobre los 20 aminoácidos:
+\[
+\operatorname{RMSE}(p,q)=\sqrt{\frac{1}{20}\sum_{i=1}^{20}(p_i-q_i)^2}.
+\]
+Un valor cercano a cero indica que las distribuciones son similares. Esta métrica se utilizó para seguir la convergencia y comparar proteínas reales con el modelo aleatorio.
+
+\paragraph{Resultado.} El RMSE entre la distribución real y la aleatoria fue 0,021613. Esto indica una diferencia apreciable de composición entre las proteínas humanas y el modelo de aminoácidos equiprobables.
+
+\section{4e) Detector de ORFs}
+\textbf{Consigna.} \textit{``El programa debe: (i) levantar una secuencia de ADN; (ii) obtener los seis marcos de lectura posibles y determinar los ORFs; (iii) calcular para cada ORF su longitud y distribución de aminoácidos; (iv) asignar una probabilidad de ser una región codificante; y (v) diseñar controles positivo y negativo.''}
+
+Un ORF se definió como una región que comienza con \texttt{ATG} y termina en el primer codón de stop en fase (\texttt{TAA}, \texttt{TAG} o \texttt{TGA}). Se analizaron los tres marcos de la hebra directa y los tres de la reversa complementaria.
+
+\subsection{Clasificador bayesiano generativo}
+Se consideraron dos hipótesis: $C$, correspondiente a una región codificante, y $R$, correspondiente a un ORF surgido al azar. Para $C$ se usaron proteínas humanas reales; para $R$ se generó ADN aleatorio, se aplicó el mismo detector y se tradujeron sus ORFs.
+
+Las distribuciones de longitud $P(L\mid C)$ y $P(L\mid R)$ se estimaron con histogramas compartidos y smoothing de Laplace. Las frecuencias de aminoácidos $p_i^C$ y $p_i^R$ se modelaron con distribuciones multinomiales suavizadas. Para un ORF de longitud $L$ y counts aminoacídicos $n_i$:
+\[
+S=\log\frac{P(C)}{P(R)}+\log\frac{P(L\mid C)}{P(L\mid R)}+\sum_{i=1}^{20}n_i\log\frac{p_i^C}{p_i^R}.
+\]
+Con priors iguales, $P(C)=P(R)=0.5$, el primer término es cero. La probabilidad posterior se calculó como:
+\[
+P(C\mid L,\mathbf{n})=\frac{1}{1+e^{-S}}.
+\]
+
+\figureorplaceholder{figuras/clasificador_orfs.png}{0.95}{Distribuciones aprendidas por el clasificador y probabilidades posteriores de los ORFs encontrados.}
+
+\subsection{Control positivo}
+Se utilizaron transcritos RefSeq mRNA de genes humanos conocidos, como: \textit{INS}, \textit{HBB}, \textit{TP53}, \textit{BRCA1}, \textit{CFTR}, \textit{EGFR} y \textit{MYC}. El CDS anotado de cada transcrito representa el ORF esperado. Se consideró un acierto si apareció entre los cinco candidatos con mayor probabilidad y con $P(C\mid L,\mathbf{n})$ mayor al umbral elegido.
+
+\begin{table}[H]
+\centering
+\caption{Resultados del control positivo.}
+\begin{tabular}{lrrrrl}
+\toprule
+Gen & Longitud esperada & ORFs detectados & Candidatos & Rango top 5 & Acierto \\
+\midrule
+INS & 110 & 6 & 2 & 2 & si \\
+HBB & 147 & 12 & 2 & 1 & si \\
+TP53 & 393 & 76 & 10 & 1 & si \\
+BRCA1 & 1863 & 250 & 28 & 1 & si \\
+CFTR & 1480 & 215 & 39 & 1 & si \\
+EGFR & 1210 & 325 & 28 & 1 & si \\
+MYC & 454 & 101 & 4 & no aparece & no \\
+ACTB & 375 & 70 & 11 & 3 & si \\
+GAPDH & 335 & 63 & 10 & 2 & si \\
+ALB & 609 & 91 & 7 & 1 & si \\
+APOE & 317 & 19 & 7 & 1 & si \\
+SOD1 & 154 & 31 & 1 & 1 & si \\
+TTR & 147 & 26 & 2 & 1 & si \\
+LDHA & 332 & 76 & 8 & 1 & si \\
+G6PD & 545 & 78 & 13 & 3 & si \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Control negativo}
+Se generaron secuencias de ADN aleatorio independientes de las utilizadas para entrenar. Un falso positivo se definió como una secuencia aleatoria que contiene al menos un ORF con probabilidad posterior superior al umbral. Un porcentaje alto de falsos positivos representa peor desempeño.
+
+\figureorplaceholder{figuras/controles_orf.png}{0.95}{Porcentaje de aciertos en controles positivos y porcentaje de falsos positivos en ADN aleatorio.}
+
+\paragraph{Resultado.} Con un umbral de $P(C\mid L,\mathbf{n}) > 0.99$, el control positivo obtuvo 93,3\% de aciertos (14 de 15 CDS) y el control negativo presentó 16,7\% de falsos positivos.
+
+\subsection{Limitación en genes eucariotas: ausencia de splicing}
+Para mostrar una limitación del método se descargaron las secuencias genómicas RefSeqGene de los mismos genes. El ADN genómico contiene intrones; como el detector no realiza splicing, no se espera que recupere el CDS completo cuando los exones están separados por intrones. Esta limitación corresponde a la arquitectura exón--intrón.
+
+\figureorplaceholder{figuras/limitacion_splicing.png}{0.95}{Recuperación del CDS esperado en mRNA empalmado y en ADN genómico sin splicing.}
+
+\paragraph{Interpretación.} La diferencia entre mRNA y ADN genómico fue de 93,3 puntos porcentuales. Esto muestra que, sin realizar splicing, el detector simple no puede reconstruir de forma fiable los CDS eucariotas completos a partir de ADN genómico con intrones.
+
+\section{Discusión y posibles mejoras}
+\begin{itemize}
+\item El modelo nulo usa bases equiprobables; podría conservar skew de GC y uso de codones.
+\item El modelo supone independencia condicional entre longitud y composición.
+\item El detector no modela intrones, sitios de splicing ni múltiples exones.
+\item Podrían incorporarse señales de splicing, conservación evolutiva y modelos más complejos.
+\end{itemize}
+
+\section{Conclusiones}
+\begin{enumerate}
+\item Las proteínas reales y aleatorias presentan composiciones diferentes.
+\item La longitud y composición permiten asignar una probabilidad simple a cada ORF.
+\item Los controles cuantifican aciertos sobre ORFs conocidos y falsos positivos al azar.
+\item El ADN genómico eucariota muestra la necesidad de incorporar splicing al método.
+\end{enumerate}
+
+\end{document}

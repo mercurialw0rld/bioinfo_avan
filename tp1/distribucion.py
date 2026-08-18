@@ -25,7 +25,7 @@ DEFAULT_SEED = 42
 def downloadHumanProteins(
     email: str,
     numberOfProteins: int = 1000,
-    outputPath: Path = Path(__file__).with_name("proteinas_humanas.fasta"),
+    outputPath: Path = Path(__file__).with_name("datos") / "proteinas_humanas.fasta",
     seed: int = DEFAULT_SEED,
     searchPoolSize: int = 10_000,
 ) -> list[SeqRecord]:
@@ -136,7 +136,7 @@ def cumulativeDistributionRmse(proteins: list[SeqRecord]) -> np.ndarray:
 def createPlots(
     realProteins: list[SeqRecord],
     randomProteins: list[SeqRecord],
-    outputPath: Path = Path("comparacion_distribuciones.png"),
+    outputPath: Path = Path(__file__).with_name("figuras") / "comparacion_distribuciones.png",
 ) -> None:
     """Crea y guarda los tres gráficos solicitados en una sola figura."""
     plt.style.use("seaborn-v0_8-whitegrid")
@@ -196,7 +196,10 @@ def main() -> None:
     parser.add_argument("--email", required=True, help="Email requerido por NCBI Entrez")
     parser.add_argument("--cantidad", type=int, default=1000)
     parser.add_argument("--semilla", type=int, default=DEFAULT_SEED)
-    parser.add_argument("--salida", type=Path, default=Path("comparacion_distribuciones.png"))
+    parser.add_argument(
+        "--salida", type=Path,
+        default=Path(__file__).with_name("figuras") / "comparacion_distribuciones.png",
+    )
     arguments = parser.parse_args()
 
     realProteins = downloadHumanProteins(
