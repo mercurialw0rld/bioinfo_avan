@@ -102,9 +102,9 @@ def downloadGenomicGene(email: str, geneName: str) -> SeqRecord:
         raise ValueError(f"No se encontro una entrada RefSeqGene para {geneName}.")
 
     with Entrez.efetch(
-        db="nuccore", id=nucleotideIds[0], rettype="fasta", retmode="text"
+        db="nuccore", id=nucleotideIds[0], rettype="gb", retmode="text"
     ) as recordHandle:
-        genomicRecord = SeqIO.read(recordHandle, "fasta")
+        genomicRecord = SeqIO.read(recordHandle, "genbank")
     sleep(0.34)
     return genomicRecord
 

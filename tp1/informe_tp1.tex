@@ -45,7 +45,6 @@ Las proteínas reales se descargaron de NCBI con Biopython y Entrez. Las secuenc
 \textbf{Consigna.} \textit{``Compare distribución de aminoácidos de secuencias de proteínas al azar vs. secuencias de proteínas reales.''}
 
 Se generaron proteínas aleatorias con las mismas longitudes que las reales, pero con los 20 aminoácidos equiprobables. Así se compara la composición sin confundirla con el efecto de la longitud.
-
 \figureorplaceholder{figuras/comparacion_distribuciones.png}{0.95}{Distribución de aminoácidos de proteínas reales y aleatorias. Las proteínas reales muestran una composición no uniforme, a diferencia del modelo aleatorio equiprobable.}
 
 \paragraph{Interpretación.} Las proteínas reales presentan frecuencias de aminoácidos desiguales y características de su composición biológica, mientras que las secuencias aleatorias presentan frecuencias aproximadamente uniformes por construcción.
@@ -54,10 +53,9 @@ Se generaron proteínas aleatorias con las mismas longitudes que las reales, per
 \textbf{Consigna.} \textit{``Analice cómo cambian las distribuciones al aumentar el tamaño de la secuencia al azar analizada, y al incrementar el número de secuencias reales analizadas. ¿Cuándo es suficiente?''}
 
 Se agregaron proteínas de a una y se comparó la distribución acumulada con la distribución final. La muestra se considera suficiente cuando la variación entre estimaciones sucesivas se vuelve pequeña y se mantiene estable.
+\figureorplaceholder{figuras/rmse.png}{0.65}{RMSE de la distribución acumulada respecto de la distribución final.}
 
-\figureorplaceholder{figuras/comparacion_distribuciones.png}{0.95}{RMSE de la distribución acumulada respecto de la distribución final. La curva se estabiliza alrededor de las 300 proteínas.}
-
-\paragraph{Resultado.} La distribución se estabilizó aproximadamente a partir de 300 proteínas. Por lo tanto, se utilizó una muestra de 1000 proteínas para obtener una estimación estable y conservadora.
+\paragraph{Resultado.} La distribución se estabilizó aproximadamente a partir de 500 proteínas. Por lo tanto, se utilizó una muestra de 1000 proteínas para obtener una estimación estable y conservadora.
 
 \section{4c y 4d) Métrica para comparar distribuciones}
 \textbf{Consigna.} \textit{``Elija una métrica que permita comparar dos distribuciones (por ejemplo, RMSE)''} y \textit{``escriba un código que, dadas dos distribuciones, las compare y obtenga la métrica correspondiente.''}
@@ -87,7 +85,7 @@ Con priors iguales, $P(C)=P(R)=0.5$, el primer término es cero. La probabilidad
 P(C\mid L,\mathbf{n})=\frac{1}{1+e^{-S}}.
 \]
 
-\figureorplaceholder{figuras/clasificador_orfs.png}{0.95}{Distribuciones aprendidas por el clasificador y probabilidades posteriores de los ORFs encontrados.}
+\figureorplaceholder{figuras/clasificador_orfs.png}{0.65}{Distribuciones aprendidas por el clasificador y probabilidades posteriores de los ORFs encontrados.}
 
 \subsection{Control positivo}
 Se utilizaron transcritos RefSeq mRNA de genes humanos conocidos, como: \textit{INS}, \textit{HBB}, \textit{TP53}, \textit{BRCA1}, \textit{CFTR}, \textit{EGFR} y \textit{MYC}. El CDS anotado de cada transcrito representa el ORF esperado. Se consideró un acierto si apareció entre los cinco candidatos con mayor probabilidad y con $P(C\mid L,\mathbf{n})$ mayor al umbral elegido.

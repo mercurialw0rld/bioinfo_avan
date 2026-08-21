@@ -1,0 +1,157 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-nodecimaldot]{babel}
+\usepackage{geometry}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{xcolor}
+\usepackage{hyperref}
+
+\geometry{margin=2.5cm}
+\hypersetup{colorlinks=true, linkcolor=blue, urlcolor=blue}
+
+\newcommand{\figureorplaceholder}[3]{%
+\begin{figure}[H]
+    \centering
+    \IfFileExists{#1}{%
+        \includegraphics[width=#2\textwidth]{#1}%
+    }{%
+        \fcolorbox{gray}{gray!8}{%
+            \parbox[c][6cm][c]{#2\textwidth}{%
+                \centering\large Espacio reservado para la figura\\[0.5em]
+                \texttt{\detokenize{#1}}%
+            }%
+        }%
+    }%
+    \caption{#3}
+\end{figure}%
+}
+
+\title{Bonus TP1: Detección de regiones codificantes por uso de codones}
+\author{Facundo Kisielus}
+\date{Bioinformática Avanzada -- 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Se desarrolló un método para explorar secuencias de ADN mediante ventanas deslizantes y estimar si cada región es codificante. El clasificador utiliza exclusivamente el uso de codones aprendido a partir de CDS humanos anotados y lo compara con un modelo de ADN aleatorio. El desempeño se evaluó sobre genes y secuencias aleatorias que no participaron del entrenamiento.
+\end{abstract}
+
+\section{Objetivo}
+
+\textbf{Consigna.} \textit{``Diseñe un programa que permita explorar una secuencia de ADN y detectar la región codificante. A partir del comienzo de la secuencia, desplace una ventana de $n$ nucleótidos y mida un score que permita decidir si la región es codificante o no.''}
+
+Se propuso un score bayesiano basado en la distribución de codones. La motivación es que los CDS naturales no utilizan los codones de manera uniforme, mientras que en ADN generado con bases equiprobables los 64 codones tienen aproximadamente la misma probabilidad.
+
+\section{Datos y preprocesamiento}
+
+Se descargaron con Biopython y Entrez 1000 registros genómicos humanos RefSeqGene en formato GenBank. Se conservaron únicamente registros con features \texttt{CDS}; no se usaron features \texttt{exon}, ya que pueden contener regiones UTR no codificantes.
+
+Para cada CDS se reconstruyó la secuencia codificante empalmada usando su localización anotada y se respetó el qualifier \texttt{codon\_start}. Las partes de localizaciones compuestas se conservaron además por separado para poder relacionar las ventanas con coordenadas genómicas. La distribución exploratoria se calculó sobre los 61 codones con sentido, excluyendo los codones de terminación.
+
+\section{Distribución de codones en CDS humanos}
+
+En total se analizaron 1.027.715 codones. La distribución obtenida no fue uniforme: los codones más frecuentes fueron \texttt{GAG} (4,07\%), \texttt{CTG} (3,99\%), \texttt{CAG} (3,54\%) y \texttt{AAG} (3,18\%). Esto muestra un sesgo de uso de codones que puede aprovecharse como señal de regiones codificantes.
+
+\figureorplaceholder{distribucion_codones_cds.png}{0.90}{Distribución de codones en CDS humanos. Cada panel fija la primera base; las columnas y filas representan la segunda y tercera base, respectivamente. Los codones stop fueron excluidos de esta visualización.}
+
+\section{Clasificador bayesiano}
+
+\subsection{Entrenamiento}
+
+Los genes se dividieron por registro: 80\% se utilizó para estimar el modelo y 20\% se reservó para el control positivo. Esta separación evita evaluar el clasificador sobre los mismos genes empleados durante el entrenamiento.
+
+Se consideraron dos hipótesis: $C$, ventana perteneciente a una región codificante, y $R$, ventana de ADN aleatorio. Para cada codón $c$ se estimaron las probabilidades suavizadas
+
+\begin{align*}
+p_c^C &= \frac{N_c^C+\alpha}{N^C+64\alpha}, &
+p_c^R &= \frac{N_c^R+\alpha}{N^R+64\alpha},
+\end{align*}
+
+donde $N_c^C$ y $N_c^R$ son los counts del codón en cada conjunto y $\alpha=1$ corresponde al smoothing de Laplace. Para el clasificador se incluyeron los 64 codones: la presencia de codones stop dentro de una ventana aporta evidencia en contra de que sea codificante.
+
+\subsection{Score por ventana}
+
+Para una ventana con counts $n_c$, el log-likelihood ratio se definió como
+
+\[
+S(\mathbf{n})=
+\log\frac{P(C)}{P(R)}+
+\sum_{c=1}^{64} n_c\log\frac{p_c^C}{p_c^R}.
+\]
+
+Se utilizaron priors iguales, $P(C)=P(R)=0{,}5$, por lo que el primer término vale cero. El score se convirtió a probabilidad posterior mediante
+
+\[
+P(C\mid\mathbf{n})=\frac{1}{1+e^{-S(\mathbf{n})}}.
+\]
+
+La secuencia se recorrió con ventanas de 300 nucleótidos. Como en una región genómica no se conoce de antemano la hebra ni el marco correcto, se calcularon los seis marcos de lectura de cada ventana y se conservó la mayor probabilidad posterior.
+
+\section{Controles y resultados}
+
+El control positivo estuvo formado por ventanas de CDS pertenecientes al 20\% de genes reservados. El control negativo utilizó la misma cantidad de ventanas nuevas de ADN uniforme aleatorio. Ninguna de estas ventanas participó del ajuste de las probabilidades. Se clasificó una ventana como codificante cuando $P(C\mid\mathbf{n})>0{,}9$.
+
+\begin{table}[H]
+\centering
+\caption{Desempeño del clasificador sobre datos no vistos.}
+\begin{tabular}{lcc}
+\toprule
+Control & Criterio medido & Resultado \\
+\midrule
+Positivo: CDS reales & Ventanas correctamente detectadas & 93,1\% \\
+Negativo: ADN aleatorio & Ventanas clasificadas como codificantes & 0,3\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\figureorplaceholder{control_clasificador_codones.png}{0.98}{Evaluación del clasificador. Arriba se muestran las distribuciones de scores y las tasas de detección; abajo, la contribución individual de cada codón al log-likelihood ratio. Los valores positivos favorecen la hipótesis codificante y los negativos favorecen el modelo aleatorio.}
+
+El modelo recuperó el 93,1\% de las ventanas codificantes y rechazó el 99,7\% de las ventanas aleatorias. La separación entre ambas distribuciones confirma que el uso de codones contiene información predictiva. Aun así, los errores restantes muestran que un modelo basado sólo en frecuencias de codones no captura toda la complejidad de una región codificante.
+
+\subsection{Efecto del tamaño de ventana}
+
+Para estudiar la cantidad de contexto necesaria se repitió el control con ventanas de 90, 150, 300, 600 y 900 nucleótidos. En todos los casos se mantuvieron fijos el clasificador, los genes reservados, el umbral de 0,9 y el número máximo de ventanas evaluadas. Para cada tamaño se generó además la misma cantidad de ventanas negativas, de modo que las tasas fueran comparables.
+
+\begin{table}[H]
+\centering
+\caption{Desempeño en función del tamaño de la ventana. Se evaluaron 5000 ventanas positivas y 5000 negativas por condición.}
+\begin{tabular}{rrrr}
+\toprule
+Ventana (nt) & Aciertos positivos & Falsos positivos & Especificidad \\
+\midrule
+90  & 81,78\% & 7,56\% & 92,44\% \\
+150 & 88,10\% & 3,38\% & 96,62\% \\
+300 & 92,92\% & 0,28\% & 99,72\% \\
+600 & 97,46\% & 0,00\% & 100,00\% \\
+900 & 98,38\% & 0,00\% & 100,00\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\figureorplaceholder{comparacion_tamanos_ventana.png}{0.90}{Sensibilidad sobre CDS reales y tasa de falsos positivos en ADN aleatorio para cinco tamaños de ventana. Ventanas más largas aportan más codones al score, mientras que ventanas cortas ofrecen mayor resolución espacial.}
+
+El desempeño mejoró de manera sostenida al aumentar el tamaño de ventana. Con 300 nt ya se obtuvo una sensibilidad de 92,92\% y sólo 0,28\% de falsos positivos. Las ventanas de 600 y 900 nt alcanzaron 97,46\% y 98,38\% de sensibilidad, respectivamente, sin falsos positivos entre las 5000 ventanas aleatorias evaluadas. Este 0\% es un resultado empírico de la muestra y no demuestra que la tasa real sea exactamente nula.
+
+Por lo tanto, 600 nt ofrece un buen compromiso para este conjunto: conserva una sensibilidad alta y elimina los falsos positivos observados, con mayor resolución espacial que 900 nt. Si se necesita localizar con más precisión los límites de una región, 300 nt sigue siendo una alternativa razonable. En general, una ventana larga aporta más codones al score y reduce su variabilidad, pero puede mezclar regiones codificantes y no codificantes cerca de sus límites.
+
+\section{Limitaciones y posibles mejoras}
+
+\begin{itemize}
+    \item El modelo aleatorio supone bases equiprobables; podría conservar el contenido GC del genoma humano.
+    \item Los codones se modelan como observaciones independientes y no se consideran dependencias entre codones vecinos.
+    \item Tomar el máximo entre seis marcos aumenta la oportunidad de obtener scores altos por azar; el control negativo incorpora este efecto, pero no lo elimina.
+    \item El método no realiza predicción de splicing. Una ventana genómica puede contener intrones o límites exón--intrón.
+    \item El umbral puede calibrarse según el compromiso deseado entre sensibilidad y falsos positivos.
+\end{itemize}
+
+\section{Conclusión}
+
+La distribución de codones permitió construir un score sencillo para explorar ADN con ventanas deslizantes. Con ventanas de 300 nt y un umbral de 0,9, el clasificador distinguió CDS reales de ADN aleatorio con aproximadamente 93,1\% de detección y 0,3\% de falsos positivos. El análisis de tamaños mostró que una mayor cantidad de contexto mejora ambas tasas: con 600 nt se alcanzó 97,46\% de sensibilidad y no se observaron falsos positivos en la muestra analizada. Estos resultados muestran que el uso de codones es una señal informativa, aunque una aplicación sobre ADN genómico completo todavía debería considerar splicing, composición de fondo y límites entre regiones.
+
+\end{document}
